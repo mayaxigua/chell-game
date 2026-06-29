@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#4fb7b3">
+    <title>捡贝壳儿</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="stylesheet" href="css/style.css?v=13">
+  </head>
+  <body>
+    <main class="app-shell" id="app">
+      <section class="screen start-screen is-active" id="startScreen">
+        <div class="ocean-stage spring" aria-hidden="true">
+          <div class="sky-glow"></div>
+          <div class="season-particles"><i></i><i></i><i></i></div>
+          <div class="wave wave-a"></div>
+          <div class="wave wave-b"></div>
+          <div class="sand"></div>
+        </div>
+        <div class="start-content">
+          <p class="eyebrow">状态推断小游戏</p>
+          <h1>捡贝壳儿</h1>
+          <p class="start-copy">观察海风和浪色，打开贝壳，发现海况变化后及时调整选择。</p>
+          <button class="primary-btn" id="startBtn" type="button">开始新手引导</button>
+          <button class="ghost-btn" id="skipTutorialBtn" type="button">直接开始第1关</button>
+        </div>
+      </section>
+
+      <section class="screen game-screen" id="gameScreen" aria-live="polite">
+        <header class="hud">
+          <div>
+            <span class="hud-label">关卡</span>
+            <strong id="levelText">Tutorial</strong>
+          </div>
+          <div>
+            <span class="hud-label">分数</span>
+            <strong id="scoreText">0</strong>
+          </div>
+          <div>
+            <span class="hud-label">海况</span>
+            <strong id="seasonText">观察中</strong>
+          </div>
+        </header>
+
+        <section class="scene spring" id="scene">
+          <div class="sky-glow"></div>
+          <div class="season-particles" id="particles"><i></i><i></i><i></i></div>
+          <div class="sun-moon" id="sunMoon"></div>
+          <div class="wave wave-a"></div>
+          <div class="wave wave-b"></div>
+          <div class="net" id="net" aria-hidden="true"></div>
+          <div class="sand"></div>
+          <div class="shell-field" id="shellField" aria-label="贝壳区域"></div>
+          <div class="shell-preview" id="shellPreview" aria-hidden="true"></div>
+          <div class="toast" id="toast"></div>
+        </section>
+
+        <section class="status-panel">
+          <div class="round-line">
+            <span id="roundText">引导 1/4</span>
+            <span id="poolText">贝壳池 4种</span>
+          </div>
+          <div class="confidence">
+            <span>信心</span>
+            <div class="confidence-track">
+              <div id="confidenceFill"></div>
+            </div>
+            <strong id="confidenceText">0%</strong>
+          </div>
+          <p class="hint-line" id="hintText">先看看海边环境有什么变化。</p>
+        </section>
+
+        <footer class="controls">
+          <button class="image-action cast-action" id="castBtn" type="button" aria-label="撒网">
+            <img src="assets/buttons/cast-net.png" alt="">
+            <span>撒网</span>
+          </button>
+          <button class="image-action open-action" id="openBtn" type="button" aria-label="打开" disabled>
+            <img src="assets/buttons/open-shell.png" alt="">
+            <span>打开</span>
+          </button>
+          <button class="ghost-btn small" id="restartBtn" type="button">退出</button>
+        </footer>
+      </section>
+
+      <section class="screen report-screen" id="reportScreen">
+        <div class="report-card">
+          <p class="eyebrow">观潮报告</p>
+          <h2 id="titleText">敏锐观潮者</h2>
+          <p class="report-summary" id="summaryText"></p>
+          <div class="metric-grid" id="metricGrid"></div>
+          <div class="report-actions">
+            <button class="primary-btn" id="playAgainBtn" type="button">再测一次</button>
+            <button class="secondary-btn" id="copyReportBtn" type="button">复制报告</button>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script src="js/app.js?v=13"></script>
+  </body>
+</html>
