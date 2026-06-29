@@ -51,8 +51,19 @@ const el = {
   startScreen: document.getElementById("startScreen"),
   gameScreen: document.getElementById("gameScreen"),
   reportScreen: document.getElementById("reportScreen"),
+  researchIntro: document.getElementById("researchIntro"),
+  leaderboardModal: document.getElementById("leaderboardModal"),
+  namePromptModal: document.getElementById("namePromptModal"),
+  leaderboardList: document.getElementById("leaderboardList"),
+  playerNameInput: document.getElementById("playerNameInput"),
   startBtn: document.getElementById("startBtn"),
+  introStartBtn: document.getElementById("introStartBtn"),
+  introBackBtn: document.getElementById("introBackBtn"),
   skipTutorialBtn: document.getElementById("skipTutorialBtn"),
+  leaderboardBtn: document.getElementById("leaderboardBtn"),
+  leaderboardCloseBtn: document.getElementById("leaderboardCloseBtn"),
+  nameConfirmBtn: document.getElementById("nameConfirmBtn"),
+  soundToggle: document.getElementById("soundToggle"),
   castBtn: document.getElementById("castBtn"),
   openBtn: document.getElementById("openBtn"),
   restartBtn: document.getElementById("restartBtn"),
@@ -78,6 +89,12 @@ const el = {
 
 let state = {};
 let lastReportText = "";
+let audioContext = null;
+let soundEnabled = localStorage.getItem("shellGameSound") === "on";
+let pendingNameConfirm = null;
+
+const REPORT_KEY = "shellGameReports";
+const PLAYER_NAME_KEY = "shellGamePlayerName";
 
 function resetState({ tutorial = true } = {}) {
   state = {
@@ -158,6 +175,17 @@ function showScreen(screen) {
 }
 
 function startGame({ tutorial }) {
+  hideResearchIntro();
+  hideLeaderboard();
+  hideNamePrompt();
+  if (!tutorial) {
+    showNamePrompt(() => beginGame({ tutorial: false }));
+    return;
+  }
+  beginGame({ tutorial: true });
+}
+
+function beginGame({ tutorial }) {
   resetState({ tutorial });
   showScreen(el.gameScreen);
   applySeason(state.trueSeason);
@@ -185,6 +213,7 @@ function castNet() {
     skipRound();
     return;
   }
+  playSound("cast");
   clearShells();
   el.castBtn.disabled = true;
   el.openBtn.disabled = true;
@@ -278,6 +307,7 @@ function toggleShell(uid) {
 
 function openSelected() {
   if (!state.canSelect || state.selected.size === 0) return;
+  playSound("open");
   state.canSelect = false;
   el.openBtn.disabled = true;
   const selected = state.caught.filter((item) => state.selected.has(item.uid));
@@ -307,6 +337,7 @@ function skipRound() {
 
 function revealShell(caught) {
   caught.opened = true;
+  playSound(caught.result);
   const card = document.querySelector(`[data-uid="${caught.uid}"]`);
   if (!card) return;
   card.classList.add("is-opened");
@@ -413,7 +444,13 @@ function advanceTutorial() {
     state.previousSeason = null;
     applySeason(state.trueSeason);
     clearShells();
-    showToast("第1关开始，正式计分");
+    updateHud();
+    el.castBtn.disabled = true;
+    showNamePrompt(() => {
+      el.castBtn.disabled = false;
+      showToast("第1关开始，正式计分");
+    });
+    return;
   }
   el.castBtn.disabled = false;
 }
@@ -522,8 +559,9 @@ function showReport() {
     ? Math.round((state.stats.exploreChoices / state.stats.opened) * 100)
     : 0;
   const title = titleFor({ hitRate, stickyIndex, avgAdapt: Number(avgAdapt) || 9 });
+  const playerName = currentPlayerName();
   el.titleText.textContent = title;
-  el.summaryText.textContent = `本次正式测试约${durationMin}分钟。你打开了${state.stats.opened}个贝壳，跳过了${state.stats.skippedRounds}轮，珍珠命中率${hitRate}%，旧规则黏性指数${stickyIndex}%。`;
+  el.summaryText.textContent = `${playerName} 本次正式测试约${durationMin}分钟。你打开了${state.stats.opened}个贝壳，跳过了${state.stats.skippedRounds}轮，珍珠命中率${hitRate}%，旧规则黏性指数${stickyIndex}%。`;
   const metrics = [
     ["总分", state.score],
     ["命中率", `${hitRate}%`],
@@ -537,7 +575,8 @@ function showReport() {
   el.metricGrid.innerHTML = metrics.map(([label, value]) => `
     <div class="metric"><span>${label}</span><strong>${value}</strong></div>
   `).join("");
-  lastReportText = `捡贝壳儿观潮报告
+lastReportText = `捡贝壳儿观潮报告
+玩家：${playerName}
 称号：${title}
 总分：${state.score}
 命中率：${hitRate}%
@@ -545,7 +584,7 @@ function showReport() {
 跳过轮数：${state.stats.skippedRounds}
 平均适应轮数：${avgAdapt}
 测试时长：${durationMin}分钟`;
-  saveReport({ title, score: state.score, hitRate, stickyIndex, avgAdapt, durationMin, createdAt: new Date().toISOString() });
+  saveReport({ playerName, title, score: state.score, hitRate, stickyIndex, avgAdapt, durationMin, createdAt: new Date().toISOString() });
   showScreen(el.reportScreen);
 }
 
@@ -558,10 +597,9 @@ function titleFor({ hitRate, stickyIndex, avgAdapt }) {
 }
 
 function saveReport(report) {
-  const key = "shellGameReports";
-  const reports = JSON.parse(localStorage.getItem(key) || "[]");
+  const reports = readReports();
   reports.unshift(report);
-  localStorage.setItem(key, JSON.stringify(reports.slice(0, 20)));
+  localStorage.setItem(REPORT_KEY, JSON.stringify(reports.slice(0, 50)));
 }
 
 function applySeason(season) {
@@ -582,6 +620,174 @@ function showToast(message) {
   el.toast.classList.add("is-visible");
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => el.toast.classList.remove("is-visible"), 1600);
+}
+
+function showResearchIntro() {
+  el.researchIntro.classList.add("is-visible");
+  el.researchIntro.setAttribute("aria-hidden", "false");
+}
+
+function hideResearchIntro() {
+  el.researchIntro.classList.remove("is-visible");
+  el.researchIntro.setAttribute("aria-hidden", "true");
+}
+
+function showLeaderboard() {
+  hideResearchIntro();
+  renderLeaderboard();
+  el.leaderboardModal.classList.add("is-visible");
+  el.leaderboardModal.setAttribute("aria-hidden", "false");
+}
+
+function hideLeaderboard() {
+  el.leaderboardModal.classList.remove("is-visible");
+  el.leaderboardModal.setAttribute("aria-hidden", "true");
+}
+
+function showNamePrompt(onConfirm) {
+  pendingNameConfirm = onConfirm;
+  hideResearchIntro();
+  hideLeaderboard();
+  el.namePromptModal.classList.add("is-visible");
+  el.namePromptModal.setAttribute("aria-hidden", "false");
+  setTimeout(() => el.playerNameInput.focus(), 80);
+}
+
+function hideNamePrompt() {
+  el.namePromptModal.classList.remove("is-visible");
+  el.namePromptModal.setAttribute("aria-hidden", "true");
+}
+
+function confirmPlayerName() {
+  savePlayerName();
+  hideNamePrompt();
+  const next = pendingNameConfirm;
+  pendingNameConfirm = null;
+  if (next) next();
+}
+
+function renderLeaderboard() {
+  const reports = readReports()
+    .slice()
+    .sort((a, b) => (b.score || 0) - (a.score || 0) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+    .slice(0, 10);
+  if (reports.length === 0) {
+    el.leaderboardList.innerHTML = `<p class="leaderboard-empty">还没有完成记录。完成一次正式测试后，成绩会出现在这里。</p>`;
+    return;
+  }
+  el.leaderboardList.innerHTML = reports.map((report, index) => `
+    <div class="leaderboard-row">
+      <span class="leaderboard-rank">${index + 1}</span>
+      <span>
+        <span class="leaderboard-name">${escapeHtml(report.playerName || "无名拾贝人")}</span>
+        <span class="leaderboard-meta">${escapeHtml(report.title || "观潮者")} · 命中${Number(report.hitRate) || 0}% · 黏性${Number(report.stickyIndex) || 0}% · ${formatReportTime(report.createdAt)}</span>
+      </span>
+      <strong class="leaderboard-score">${Number(report.score) || 0}</strong>
+    </div>
+  `).join("");
+}
+
+function readReports() {
+  try {
+    const reports = JSON.parse(localStorage.getItem(REPORT_KEY) || "[]");
+    return Array.isArray(reports) ? reports : [];
+  } catch {
+    return [];
+  }
+}
+
+function currentPlayerName() {
+  const value = el.playerNameInput.value.trim().replace(/\s+/g, " ");
+  return value || "无名拾贝人";
+}
+
+function savePlayerName() {
+  localStorage.setItem(PLAYER_NAME_KEY, currentPlayerName());
+}
+
+function formatReportTime(value) {
+  if (!value) return "刚刚";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "刚刚";
+  return date.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;"
+  })[char]);
+}
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  localStorage.setItem("shellGameSound", soundEnabled ? "on" : "off");
+  if (soundEnabled) {
+    ensureAudioContext();
+    playSound("toggle");
+  }
+  updateSoundToggle();
+}
+
+function updateSoundToggle() {
+  el.soundToggle.classList.toggle("is-on", soundEnabled);
+  el.soundToggle.textContent = soundEnabled ? "音效开" : "音效关";
+  el.soundToggle.setAttribute("aria-pressed", String(soundEnabled));
+  el.soundToggle.setAttribute("aria-label", soundEnabled ? "关闭音效" : "开启音效");
+}
+
+function ensureAudioContext() {
+  if (!audioContext) {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return null;
+    audioContext = new AudioCtx();
+  }
+  if (audioContext.state === "suspended") audioContext.resume();
+  return audioContext;
+}
+
+function playSound(type) {
+  if (!soundEnabled) return;
+  const ctx = ensureAudioContext();
+  if (!ctx) return;
+  if (type === "pearl") {
+    playTone(ctx, 660, 0.08, 0.04, "sine", 0);
+    playTone(ctx, 880, 0.12, 0.04, "sine", 0.08);
+    playTone(ctx, 1180, 0.14, 0.035, "triangle", 0.18);
+    return;
+  }
+  if (type === "sand") {
+    playTone(ctx, 170, 0.16, 0.05, "sawtooth", 0, 105);
+    return;
+  }
+  if (type === "open") {
+    playTone(ctx, 340, 0.09, 0.045, "triangle", 0, 520);
+    return;
+  }
+  if (type === "cast") {
+    playTone(ctx, 220, 0.18, 0.04, "triangle", 0, 430);
+    return;
+  }
+  playTone(ctx, 520, 0.08, 0.035, "sine", 0);
+}
+
+function playTone(ctx, startFreq, duration, volume, waveType, delay = 0, endFreq = startFreq) {
+  const now = ctx.currentTime + delay;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = waveType;
+  osc.frequency.setValueAtTime(startFreq, now);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(40, endFreq), now + duration);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(volume, now + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + duration + 0.02);
 }
 
 function shellSvg(shell, opened, result) {
@@ -711,11 +917,23 @@ function randomItem(array) {
   return array[Math.floor(Math.random() * array.length)];
 }
 
-el.startBtn.addEventListener("click", () => startGame({ tutorial: true }));
+el.startBtn.addEventListener("click", showResearchIntro);
+el.introStartBtn.addEventListener("click", () => startGame({ tutorial: true }));
+el.introBackBtn.addEventListener("click", hideResearchIntro);
 el.skipTutorialBtn.addEventListener("click", () => startGame({ tutorial: false }));
+el.leaderboardBtn.addEventListener("click", showLeaderboard);
+el.leaderboardCloseBtn.addEventListener("click", hideLeaderboard);
+el.nameConfirmBtn.addEventListener("click", confirmPlayerName);
+el.playerNameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") confirmPlayerName();
+});
+el.soundToggle.addEventListener("click", toggleSound);
 el.castBtn.addEventListener("click", castNet);
 el.openBtn.addEventListener("click", openSelected);
-el.restartBtn.addEventListener("click", () => showScreen(el.startScreen));
+el.restartBtn.addEventListener("click", () => {
+  hideNamePrompt();
+  showScreen(el.startScreen);
+});
 el.playAgainBtn.addEventListener("click", () => startGame({ tutorial: false }));
 el.copyReportBtn.addEventListener("click", async () => {
   try {
@@ -726,6 +944,12 @@ el.copyReportBtn.addEventListener("click", async () => {
     showScreen(el.reportScreen);
   }
 });
+
+const savedPlayerName = localStorage.getItem(PLAYER_NAME_KEY);
+if (savedPlayerName && savedPlayerName !== "无名拾贝人") {
+  el.playerNameInput.value = savedPlayerName;
+}
+updateSoundToggle();
 
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
   navigator.serviceWorker.register("./sw.js").catch(() => {});

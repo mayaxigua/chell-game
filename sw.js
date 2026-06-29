@@ -1,4 +1,4 @@
-const CACHE_NAME = "shell-game-v13";
+const CACHE_NAME = "shell-game-v16";
 const ASSETS = [
   "./",
   "./index.html",

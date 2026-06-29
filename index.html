@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#4fb7b3">
     <title>捡贝壳儿</title>
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="css/style.css?v=13">
+    <link rel="stylesheet" href="css/style.css?v=16">
   </head>
   <body>
     <main class="app-shell" id="app">
@@ -24,8 +24,50 @@
           <p class="start-copy">观察海风和浪色，打开贝壳，发现海况变化后及时调整选择。</p>
           <button class="primary-btn" id="startBtn" type="button">开始新手引导</button>
           <button class="ghost-btn" id="skipTutorialBtn" type="button">直接开始第1关</button>
+          <button class="ghost-btn" id="leaderboardBtn" type="button">查看排行榜</button>
+        </div>
+        <div class="research-intro" id="researchIntro" aria-hidden="true">
+          <div class="research-card" role="dialog" aria-modal="true" aria-labelledby="researchTitle">
+            <p class="eyebrow">游戏灵感</p>
+            <h2 id="researchTitle">贝壳里的规则会改变</h2>
+            <p>
+              这个小游戏的灵感来自 Neuroscience News 对一项 OCD 相关研究的报道：
+              血清素可能帮助降低“认知信念粘性”，让人更容易在新证据出现时更新判断。
+            </p>
+            <p>
+              在游戏里，海况会变化，同一种贝壳的结果也可能改变。你要观察环境、尝试打开贝壳，
+              并在发现旧规则不再可靠时，练习更灵活地调整选择。
+            </p>
+            <p class="research-note">这不是医学诊断或疗效测试，只用于观察一次游戏中的选择和适应模式。</p>
+            <button class="primary-btn" id="introStartBtn" type="button">我知道了，开始引导</button>
+            <button class="ghost-btn" id="introBackBtn" type="button">返回</button>
+          </div>
         </div>
       </section>
+
+      <div class="leaderboard-modal" id="leaderboardModal" aria-hidden="true">
+        <div class="leaderboard-card" role="dialog" aria-modal="true" aria-labelledby="leaderboardTitle">
+          <p class="eyebrow">本机记录</p>
+          <h2 id="leaderboardTitle">排行榜</h2>
+          <div class="leaderboard-list" id="leaderboardList"></div>
+          <button class="primary-btn" id="leaderboardCloseBtn" type="button">关闭</button>
+        </div>
+      </div>
+
+      <div class="name-prompt-modal" id="namePromptModal" aria-hidden="true">
+        <div class="name-prompt-card" role="dialog" aria-modal="true" aria-labelledby="namePromptTitle">
+          <p class="eyebrow">第1关即将开始</p>
+          <h2 id="namePromptTitle">记录本次玩家</h2>
+          <p class="name-prompt-copy">输入一个名字，完成测试后成绩会进入本机排行榜。</p>
+          <label class="name-field">
+            <span>玩家姓名</span>
+            <input id="playerNameInput" type="text" maxlength="12" autocomplete="name" placeholder="例如 小贝壳">
+          </label>
+          <button class="primary-btn" id="nameConfirmBtn" type="button">开始第1关</button>
+        </div>
+      </div>
+
+      <button class="sound-toggle" id="soundToggle" type="button" aria-pressed="false" aria-label="开启音效">音效关</button>
 
       <section class="screen game-screen" id="gameScreen" aria-live="polite">
         <header class="hud">
@@ -97,6 +139,6 @@
         </div>
       </section>
     </main>
-    <script src="js/app.js?v=13"></script>
+    <script src="js/app.js?v=16"></script>
   </body>
 </html>
