@@ -952,5 +952,16 @@ if (savedPlayerName && savedPlayerName !== "无名拾贝人") {
 updateSoundToggle();
 
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js").catch(() => {});
+  let reloadedForUpdate = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloadedForUpdate) return;
+    reloadedForUpdate = true;
+    window.location.reload();
+  });
+  navigator.serviceWorker.register("./sw.js")
+    .then((registration) => {
+      registration.update();
+      setInterval(() => registration.update(), 30 * 60 * 1000);
+    })
+    .catch(() => {});
 }
